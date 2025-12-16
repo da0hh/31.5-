@@ -1,0 +1,77 @@
+#include "belskiyNik.h"
+
+using namespace std;
+
+class Toy {
+	string name;
+	
+public:
+	Toy(string _name) : name(_name) {}
+	string getName() const { return name; }
+
+	~Toy() { cout << name << " was dropped\n"; }
+};
+
+class Dog {
+	string name;
+	shared_ptr<Toy> current_toy;
+
+public:
+	explicit Dog(const std::string& name_) : name(name_), current_toy(nullptr) {}
+
+	Dog(const Dog&) = delete;
+	Dog& operator=(const Dog&) = delete;
+
+	void getToy(shared_ptr<Toy> toy) {
+		if (current_toy && current_toy.get() == toy.get()) {
+			cout << "I already have this toy\n";
+			return;
+		}
+
+		static vector<Dog*> allDogs;
+
+		auto it = find(allDogs.begin(), allDogs.end(), this);
+		if (it == allDogs.end()) {
+			allDogs.push_back(this);
+		}
+
+		for (Dog* other : allDogs) {
+			if (other != this && other->current_toy &&
+				other->current_toy.get() == toy.get()) {
+				cout << "Another dog is playing with this toy\n";
+				return;
+			}
+		}
+		
+		current_toy = toy;
+		std::cout << name << " picked up " << toy->getName() << std::endl;
+	}
+
+	void dropToy(){
+		if (!current_toy) {
+			cout << "Nothing to drop\n";
+			return;
+		}
+
+		cout << name << " dropped its " << current_toy->getName() << endl;
+		current_toy.reset();
+	}
+};
+
+int main() {
+	setlocale(LC_ALL, "RU");
+	auto ball = std::make_shared<Toy>("ball");
+
+	Dog dog1("Buddy");
+	Dog dog2("Max");
+
+	dog1.getToy(ball); 
+	dog1.getToy(ball);
+	dog2.getToy(ball);  
+	dog1.dropToy();  
+	dog2.getToy(ball); 
+	dog2.dropToy(); 
+	dog2.dropToy();  
+
+	return 0;
+}
