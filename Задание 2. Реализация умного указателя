@@ -1,0 +1,164 @@
+#include "belskiyNik.h"
+
+using namespace std;
+
+class Toy {
+	string name;
+	
+public:
+	Toy(string _name) : name(_name) {}
+	string getName() const { return name; }
+
+	~Toy() { cout << name << " was dropped\n"; }
+};
+
+class shared_ptr_toy {
+private:
+    Toy* toy_ptr; 
+    int* counter;   
+
+    void release() {
+        if (counter != nullptr) {
+            (*counter)--;
+            if (*counter == 0) {
+                delete toy_ptr;
+                delete counter;
+            }
+            toy_ptr = nullptr;
+            counter = nullptr;
+        }
+    }
+
+public:
+    shared_ptr_toy() : toy_ptr(nullptr), counter(nullptr) {}
+
+    explicit shared_ptr_toy(const string& name)
+        : toy_ptr(new Toy(name)), counter(new int(1)) {
+    }
+
+    shared_ptr_toy(const shared_ptr_toy& other)
+        : toy_ptr(other.toy_ptr), counter(other.counter) {
+        if (counter != nullptr) {
+            (*counter)++;
+        }
+    }
+
+    shared_ptr_toy& operator=(const shared_ptr_toy& other) {
+        if (this == &other) {
+            return *this; 
+        }
+
+        release(); 
+
+        toy_ptr = other.toy_ptr;
+        counter = other.counter;
+
+        if (counter != nullptr) {
+            (*counter)++;
+        }
+
+        return *this;
+    }
+
+    ~shared_ptr_toy() {
+        release();
+    }
+
+    void reset() {
+        release();
+        toy_ptr = nullptr;
+        counter = nullptr;
+    }
+
+    Toy* get() const {
+        return toy_ptr;
+    }
+
+    int use_count() const {
+        return (counter != nullptr) ? *counter : 0;
+    }
+
+    string getToyName() const {
+        if (toy_ptr == nullptr) {
+            return "Nothing";
+        }
+        return toy_ptr->getName();
+    }
+};
+
+shared_ptr_toy make_shared_toy(const string& name) {
+    return shared_ptr_toy(name);
+}
+
+class Dog {
+	string name;
+	shared_ptr<Toy> current_toy;
+
+public:
+	explicit Dog(const std::string& name_) : name(name_), current_toy(nullptr) {}
+
+	Dog(const Dog&) = delete;
+	Dog& operator=(const Dog&) = delete;
+
+	void getToy(shared_ptr<Toy> toy) {
+		if (current_toy && current_toy.get() == toy.get()) {
+			cout << "I already have this toy\n";
+			return;
+		}
+
+		static vector<Dog*> allDogs;
+
+		auto it = find(allDogs.begin(), allDogs.end(), this);
+		if (it == allDogs.end()) {
+			allDogs.push_back(this);
+		}
+
+		for (Dog* other : allDogs) {
+			if (other != this && other->current_toy &&
+				other->current_toy.get() == toy.get()) {
+				cout << "Another dog is playing with this toy\n";
+				return;
+			}
+		}
+		
+		current_toy = toy;
+		std::cout << name << " picked up " << toy->getName() << std::endl;
+	}
+
+	void dropToy(){
+		if (!current_toy) {
+			cout << "Nothing to drop\n";
+			return;
+		}
+
+		cout << name << " dropped its " << current_toy->getName() << endl;
+		current_toy.reset();
+	}
+};
+
+int main() {
+	setlocale(LC_ALL, "RU");
+	shared_ptr_toy toy1 = make_shared_toy("ball");
+	shared_ptr_toy toy2(toy1);
+	shared_ptr_toy toy3("duck");
+
+	cout << "=================================================" << endl;
+	cout << toy1.getToyName() << " links:" << toy1.use_count() << "  " 
+		<< toy2.getToyName() << " links:" << toy2.use_count() << "  " 
+		<< toy3.getToyName() << " links:" << toy3.use_count() << endl;
+	cout << "=================================================" << endl;
+
+	toy2 = toy3;
+	cout << toy1.getToyName() << " links:" << toy1.use_count() << "  "
+		<< toy2.getToyName() << " links:" << toy2.use_count() << "  "
+		<< toy3.getToyName() << " links:" << toy3.use_count() << endl;
+	cout << "=================================================" << endl;
+
+	toy1.reset();
+	cout << toy1.getToyName() << " links:" << toy1.use_count() << "  "
+		<< toy2.getToyName() << " links:" << toy2.use_count() << "  "
+		<< toy3.getToyName() << " links:" << toy3.use_count() << endl;
+	cout << "=================================================" << endl;
+
+	return 0;
+}
